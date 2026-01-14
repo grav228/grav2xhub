@@ -1,0 +1,206 @@
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
+
+-- Create Main Window
+local Window = Library:Window({
+    Title = "Grav2x",
+    Desc = "Universal hub 2.0",
+    Icon = 105059922903197,
+    Theme = "Dark",
+    Config = {
+        Keybind = Enum.KeyCode.LeftControl,
+        Size = UDim2.new(0, 500, 0, 400)
+    },
+    CloseUIButton = {
+        Enabled = true,
+        Text = "Grav2x"
+    }
+})
+
+-- Sidebar Vertical Separator
+local SidebarLine = Instance.new("Frame")
+SidebarLine.Size = UDim2.new(0, 1, 1, 0)
+SidebarLine.Position = UDim2.new(0, 140, 0, 0)
+SidebarLine.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+SidebarLine.BorderSizePixel = 0
+SidebarLine.ZIndex = 5
+SidebarLine.Name = "SidebarLine"
+SidebarLine.Parent = game:GetService("CoreGui")
+
+-- Таб Main
+local Tab = Window:Tab({Title = "ESP", Icon = "star"})
+
+-- ESP код (ИСПРАВЛЕННЫЙ)
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ESP_ENABLED = false
+local espBoxes = {}
+local espGuis = {}
+local playerConnections = {}  -- ✅ ХРАНИМ ВСЕ СОЕДИНЕНИЯ
+
+local function cleanupPlayer(player)
+    -- ✅ Полная очистка ПОЛНОСТЬЮ
+    if espBoxes[player] then 
+        pcall(function() espBoxes[player]:Destroy() end)
+        espBoxes[player] = nil 
+    end
+    if espGuis[player] then 
+        pcall(function() espGuis[player]:Destroy() end)
+        espGuis[player] = nil 
+    end
+    
+    -- ✅ Отключаем все connections игрока
+    if playerConnections[player] then
+        for _, conn in pairs(playerConnections[player]) do
+            if conn then pcall(function() conn:Disconnect() end) end
+        end
+        playerConnections[player] = nil
+    end
+end
+
+local function createESP(player)
+    if player == LocalPlayer or ESP_ENABLED == false then return end
+    
+    local function onCharacterAdded(character)
+        if ESP_ENABLED == false then return end  -- ✅ Проверка на вкл
+        
+        cleanupPlayer(player)  -- ✅ Очистка перед созданием
+        
+        local hrp = character:WaitForChild("HumanoidRootPart", 5)
+        local head = character:WaitForChild("Head", 5)
+        local humanoid = character:WaitForChild("Humanoid", 5)
+        
+        if not (hrp and head and humanoid) then return end
+        
+        -- Box ESP
+        local box = Instance.new("BoxHandleAdornment")
+        box.Name = "ESP_Box"
+        box.Adornee = hrp
+        local playerHeight = humanoid.HipHeight + head.Size.Y + 1
+        box.Size = Vector3.new(4, playerHeight, 2)
+        box.Color3 = Color3.fromRGB(255, 0, 0)
+        box.Transparency = 0.5
+        box.AlwaysOnTop = true
+        box.ZIndex = 10
+        box.Parent = hrp
+        espBoxes[player] = box
+        
+        -- Ник + HP
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ESP_NameHealth"
+        billboard.Adornee = head
+        billboard.Size = UDim2.new(0, 200, 0, 50)
+        billboard.StudsOffset = Vector3.new(0, 2, 0)
+        billboard.AlwaysOnTop = true
+        billboard.Parent = head
+        
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = player.Name
+        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        nameLabel.TextScaled = true
+        nameLabel.Font = Enum.Font.SourceSansBold
+        nameLabel.Parent = billboard
+        
+        local hpLabel = Instance.new("TextLabel")
+        hpLabel.Size = UDim2.new(1, 0, 0.5, 0)
+        hpLabel.Position = UDim2.new(0, 0, 0.5, 0)
+        hpLabel.BackgroundTransparency = 1
+        hpLabel.Text = "HP: " .. math.floor(humanoid.Health)
+        hpLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+        hpLabel.TextScaled = true
+        hpLabel.Font = Enum.Font.SourceSans
+        hpLabel.Parent = billboard
+        espGuis[player] = billboard
+        
+        -- ✅ СОХРАНЯЕМ CONNECTIONS
+        playerConnections[player] = playerConnections[player] or {}
+        
+        -- HP connection
+        local healthConn = humanoid.HealthChanged:Connect(function(health)
+            if ESP_ENABLED == false or not hpLabel.Parent then 
+                healthConn:Disconnect()
+                return 
+            end
+            local percent = math.floor((health / humanoid.MaxHealth) * 100)
+            hpLabel.Text = "HP: " .. math.floor(health) .. " (" .. percent .. "%)"
+            hpLabel.TextColor3 = percent > 50 and Color3.fromRGB(0, 255, 0) or (percent > 25 and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(255, 0, 0))
+        end)
+        table.insert(playerConnections[player], healthConn)
+        
+        -- HipHeight connection
+        local hipConn = humanoid:GetPropertyChangedSignal("HipHeight"):Connect(function()
+            if ESP_ENABLED == false or not box.Parent then 
+                hipConn:Disconnect()
+                return 
+            end
+            local newHeight = humanoid.HipHeight + head.Size.Y + 1
+            box.Size = Vector3.new(4, newHeight, 2)
+        end)
+        table.insert(playerConnections[player], hipConn)
+    end
+    
+    if player.Character then
+        onCharacterAdded(player.Character)
+    end
+    -- ✅ Сохраняем CharacterAdded connection
+    local charAddedConn = player.CharacterAdded:Connect(function()
+        if ESP_ENABLED then onCharacterAdded(character) end
+    end)
+    if not playerConnections[player] then playerConnections[player] = {} end
+    table.insert(playerConnections[player], charAddedConn)
+end
+
+local function toggleESP(state)
+    ESP_ENABLED = state
+    print("ESP toggle:", state)  -- ✅ Debug
+    
+    if state then
+        -- Включить
+        for _, player in ipairs(Players:GetPlayers()) do
+            createESP(player)
+        end
+        Window:Notify({
+            Title = "ESP",
+            Desc = "On",
+            Time = 2
+        })
+    else
+        -- ✅ ПОЛНАЯ ОЧИСТКА ВСЕГО
+        for player, _ in pairs(espBoxes) do
+            cleanupPlayer(player)
+        end
+        for player, _ in pairs(espGuis) do
+            cleanupPlayer(player)
+        end
+        espBoxes = {}
+        espGuis = {}
+        playerConnections = {}
+        Window:Notify({
+            Title = "ESP",
+            Desc = "Off",
+            Time = 2
+        })
+    end
+end
+
+-- Toggle в UI
+Tab:Toggle({
+    Title = "ESP (Box + HP + name)",
+    Desc = "Red box, name and HP",
+    Value = false,
+    Callback = function(v)
+        toggleESP(v)
+    end
+})
+
+-- ✅ Глобальная очистка при выходе
+Players.PlayerRemoving:Connect(function(player)
+    cleanupPlayer(player)
+end)
+
+Window:Notify({
+    Title = "grav2x",
+    Desc = "ESP Off",
+    Time = 3
+})
