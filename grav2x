@@ -1,13 +1,14 @@
+-- Load UI Library
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
 
--- Create Main Window
+-- Create Main Window (ИСПРАВЛЕННЫЙ Keybind)
 local Window = Library:Window({
-    Title = "Grav2x hub",
-    Desc = "Grav's Hub 2.0",
+    Title = "Grav2x Hub",
+    Desc = "Grav's Hub",
     Icon = 105059922903197,
     Theme = "Dark",
     Config = {
-        Keybind = Enum.KeyCode.LeftControl,
+        Keybind = Enum.KeyCode.RightControl,  -- ✅ ИЗМЕНИЛ НА RightControl
         Size = UDim2.new(0, 500, 0, 400)
     },
     CloseUIButton = {
@@ -29,13 +30,27 @@ SidebarLine.Parent = game:GetService("CoreGui")
 -- Таб Main
 local Tab = Window:Tab({Title = "Main", Icon = "star"})
 
--- ESP код (ИСПРАВЛЕН respawn)
+-- Hitbox кнопка
+Tab:Button({
+    Title = "Hitbox",
+    Desc = "Tap on this to load!",
+    Callback = function()
+        loadstring(game:HttpGet("https://pastefy.app/ItfO0tdg/raw"))()
+        Window:Notify({
+            Title = "Hitbox",
+            Desc = "Loaded!",
+            Time = 2
+        })
+    end
+})
+
+-- ESP код
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local ESP_ENABLED = false
 local espBoxes = {}
 local espGuis = {}
-local charConnections = {}  -- ✅ ГЛОБАЛЬНЫЙ ХРАН respawn
+local charConnections = {}
 
 local function cleanupPlayer(player)
     if espBoxes[player] then 
@@ -52,23 +67,16 @@ local function createESP(player)
     if player == LocalPlayer or not ESP_ENABLED then return end
     
     local function onCharacterAdded(character)
-        if not ESP_ENABLED then return end  -- ✅ Быстрая проверка
+        if not ESP_ENABLED then return end
         
-        cleanupPlayer(player)  -- ✅ Очистка
+        cleanupPlayer(player)
         
-        -- ✅ Ждём загрузку
         local hrp = character:WaitForChild("HumanoidRootPart", 10)
         local head = character:WaitForChild("Head", 10)
         local humanoid = character:WaitForChild("Humanoid", 10)
         
-        if not (hrp and head and humanoid) then 
-            warn("ESP", player.Name)
-            return 
-        end
+        if not (hrp and head and humanoid) then return end
         
-        print("ESP created for", player.Name)  -- ✅ Debug
-        
-        -- Box
         local box = Instance.new("BoxHandleAdornment")
         box.Name = "ESP_Box_" .. player.Name
         box.Adornee = hrp
@@ -81,7 +89,6 @@ local function createESP(player)
         box.Parent = hrp
         espBoxes[player] = box
         
-        -- Billboard
         local billboard = Instance.new("BillboardGui")
         billboard.Name = "ESP_NameHealth_" .. player.Name
         billboard.Adornee = head
@@ -110,31 +117,27 @@ local function createESP(player)
         hpLabel.Parent = billboard
         espGuis[player] = billboard
         
-        -- ✅ Health conn
-        local healthConn = humanoid.HealthChanged:Connect(function(health)
+        humanoid.HealthChanged:Connect(function(health)
             if not ESP_ENABLED or not hpLabel.Parent then return end
             local percent = math.floor((health / humanoid.MaxHealth) * 100)
             hpLabel.Text = "HP: " .. math.floor(health) .. " (" .. percent .. "%)"
             hpLabel.TextColor3 = percent > 50 and Color3.fromRGB(0, 255, 0) or (percent > 25 and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(255, 0, 0))
         end)
         
-        -- ✅ HipHeight conn
-        local hipConn = humanoid:GetPropertyChangedSignal("HipHeight"):Connect(function()
+        humanoid:GetPropertyChangedSignal("HipHeight"):Connect(function()
             if not ESP_ENABLED or not box.Parent then return end
             local newHeight = humanoid.HipHeight + head.Size.Y + 1
             box.Size = Vector3.new(4, newHeight, 2)
         end)
     end
     
-    -- ✅ Проверяем текущий персонаж
     if player.Character and player.Character.Parent then
         onCharacterAdded(player.Character)
     end
     
-    -- ✅ ГЛОБАЛЬНЫЙ CharacterAdded (НЕ перезаписывается)
     if not charConnections[player] then
         charConnections[player] = player.CharacterAdded:Connect(function()
-            task.wait(0.5)  -- ✅ Ждём полной загрузки
+            task.wait(0.5)
             if ESP_ENABLED then
                 onCharacterAdded(player.Character)
             end
@@ -144,20 +147,16 @@ end
 
 local function toggleESP(state)
     ESP_ENABLED = state
-    print("🔄 ESP toggle:", state) 
-    
     if state then
-        -- Включить для всех
         for _, player in ipairs(Players:GetPlayers()) do
             createESP(player)
         end
         Window:Notify({
             Title = "ESP",
-            Desc = "On (respawn fixed)",
+            Desc = "On",
             Time = 2
         })
     else
-        -- Полная очистка
         for player, _ in pairs(espBoxes) do
             cleanupPlayer(player)
         end
@@ -171,29 +170,28 @@ local function toggleESP(state)
     end
 end
 
--- Toggle UI
+-- ESP Toggle
 Tab:Toggle({
     Title = "ESP (Box + HP + name)",
-    Desc = "Red box ESP",
+    Desc = "Red box and other",
     Value = false,
     Callback = function(v)
         toggleESP(v)
     end
 })
 
--- ✅ Глобальная очистка
+-- Очистка
 Players.PlayerRemoving:Connect(function(player)
     cleanupPlayer(player)
     charConnections[player] = nil
 end)
 
--- ✅ Инициализация для существующих
 for _, player in ipairs(Players:GetPlayers()) do
     createESP(player)
 end
 
 Window:Notify({
     Title = "grav2x",
-    Desc = "ESP",
+    Desc = "GUI + ESP + Hitbox",
     Time = 3
 })
